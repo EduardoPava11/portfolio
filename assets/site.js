@@ -4,8 +4,18 @@
   var cells = Array.prototype.slice.call(document.querySelectorAll('.strip a'));
   var panel = document.getElementById('panel');
 
+  // Land on the picture named in the URL, instantly, before anything observes the reel.
+  var start = 0;
+  var m = /^#p(\d+)$/.exec(location.hash);
+  if (m && slides[parseInt(m[1], 10) - 1]) {
+    start = parseInt(m[1], 10) - 1;
+    reel.style.scrollBehavior = 'auto';
+    reel.scrollTop = slides[start].offsetTop;
+    reel.style.scrollBehavior = '';
+  }
+
   // Which picture is on screen: light its cell in the strip, keep the hash honest.
-  var current = 0;
+  var current = start;
   function setCurrent(i) {
     current = i;
     cells.forEach(function (c, j) { c.classList.toggle('current', j === i); });
@@ -78,8 +88,5 @@
     return ok;
   }
 
-  // Land on the picture named in the URL.
-  var m = /^#p(\d+)$/.exec(location.hash);
-  if (m) { var i = parseInt(m[1], 10) - 1; if (slides[i]) { slides[i].scrollIntoView({ block: 'start' }); setCurrent(i); } }
-  else setCurrent(0);
+  setCurrent(start);
 })();
