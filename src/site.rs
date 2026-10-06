@@ -20,11 +20,11 @@ pub fn build(root: &Path) -> Result<()> {
         .map(|p| -> Result<(u32, u32)> {
             let large = docs.join("img/large").join(format!("{}.jpg", p.stem));
             let thumb = docs.join("img/thumb").join(format!("{}.jpg", p.stem));
-            let img = images::open_upright(p)?;
-            if !images::up_to_date(&p.path, &large) {
+            let img = images::open_display(p)?;
+            if !images::up_to_date(&p.display, &large) {
                 images::write_jpeg(&images::fit(&img, images::LARGE_SIDE), &large)?;
             }
-            if !images::up_to_date(&p.path, &thumb) {
+            if !images::up_to_date(&p.display, &thumb) {
                 images::write_jpeg(&images::fit(&img, images::THUMB_SIDE), &thumb)?;
             }
             Ok((img.width(), img.height()))

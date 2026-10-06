@@ -13,8 +13,11 @@ content/
   site.toml       name, title, tagline, contact
   bio.txt         the bio, plain text, blank line between paragraphs
   statement.txt   the artist statement, same format
-  photos.toml     viewing order and captions
-  photos/         the photographs themselves (jpg, jpeg, png)
+  photos.toml     captions (and viewing order when there is no order.txt)
+  order.txt       colour order written by `lab`
+  selection.txt   the pictures to submit, in order, read by `export`
+  <photos_dir>/   the photographs (jpg, jpeg, png, tiff); set in site.toml
+  framed/         matte's framed copies (ignored by git)
 assets/           stylesheet and page script, copied into the site as is
 src/              the generator
 docs/             the built site (ignored by git, published by deploy.sh)
@@ -24,13 +27,60 @@ analysis/red/     the red analysis (ignored by git)
 ## Working on it
 
 ```sh
+cargo run --release -- lab       # CIELAB reading of every pixel; writes content/order.txt (colour order)
+cargo run --release -- frame     # borders via matte -> content/framed/ (matte options may follow)
+cargo run --release -- export    # submission JPEGs from content/selection.txt -> export/
 cargo run --release -- build     # write docs/, open docs/index.html in a browser
 cargo run --release -- red       # analyse the reds, open analysis/red/index.html
-cargo run --release -- all       # both
 ./deploy.sh                      # build and publish to GitHub Pages
 ```
 
-Photographs: drop files into `content/photos/`. Every file there is included. List the
+The order of work for a submission: `lab` to read and order the body by colour,
+`frame` to put the mat on, prune `content/selection.txt` to the pictures you are
+sending, `export` to write the numbered JPEGs, `build` and `./deploy.sh` for the site.
+
+## The Exposure 2027 calls (read 2026-10-05)
+
+Both close 11:59pm, October 5, 2026, through Wufoo forms linked from
+exposurephotofestival.com. Exhibition at TRUCK Contemporary Art, Calgary,
+February 1 to 28, 2027. Artist fee $456 plus $50 production.
+
+| | North West Showcase | International Open Call |
+| --- | --- | --- |
+| who | emerging artists in AB, BC, SK, MB, YT, NT | anyone |
+| images | 8 to 15 from a connected series | 5 to 10 from a connected series |
+| files | JPEG, 5 MB max, `01_LastName.jpeg` | same |
+| words | short statement about the project | same, no bio |
+| fee | $35 for 10, $5 each after | $45 for 5, $5 each after |
+| jury | Monika Szewczyk (Polygon Gallery) + 4 | Shana Lopes (SFMOMA) + 2 |
+
+Jurors score Artistic Strength ("technical and presentation choices feel
+deliberate", "a considered, individual approach") and Relevance and Resonance
+("engages with ideas, experiences, or questions that matter right now") on a
+four point scale. `export` enforces the file rules and reports whether the count
+fits each call.
+
+## CIELAB reading and colour order
+
+`cargo run --release -- lab` converts every pixel of every photograph, at full
+resolution, from sRGB to CIELAB (D65) and records per photograph the L* a* b*
+centroid, median L*, mean and 90th percentile chroma, the chroma weighted mean hue
+and how much the picture's colour agrees on that hue, plus a chroma weighted hue
+histogram. It then sorts the body by hue and cuts the circle at the widest empty
+gap between neighbouring photographs, so the sequence never splits a colour family.
+The result is `content/order.txt`, which `build` and `export` follow, and a contact
+sheet at `analysis/lab/index.html` with the numbers in `lab.csv`.
+
+## Borders
+
+`cargo run --release -- frame` hands the originals to `matte` (`~/MATTE`), which
+measures the set in CAM16-UCS, proposes mat colours from the set's own statistics,
+and grows the canvas around each photograph without resampling. The top ranked
+candidate is used unless `--pick <id>` or `--color "#RRGGBB"` follows the command;
+`matte analyze <folder>` lists the candidates. Framed copies go to `content/framed/`
+and, with `framed = true` in `site.toml`, are what the site and the export show.
+
+Photographs: drop files into the folder named by `photos_dir` in `site.toml`. Every file there is included. List the
 ones you want first in `content/photos.toml` with a title, place and caption; the rest
 follow in alphabetical order. The season and year under each photograph come from the
 EXIF capture date (meteorological seasons: Dec to Feb winter, Mar to May spring, Jun to

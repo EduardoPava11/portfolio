@@ -95,7 +95,7 @@ impl Reds {
 
 pub fn run(root: &Path, args: &[String]) -> Result<()> {
     let opts = Options::parse(args)?;
-    let content = content::load(root)?;
+    let content = content::load_originals(root)?;
     let out = root.join("analysis/red");
     fs::create_dir_all(&out)?;
     if content.photos.is_empty() {

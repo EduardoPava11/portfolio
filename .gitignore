@@ -2,3 +2,8 @@
 /docs
 /analysis
 .DS_Store
+# Derived copies and the submission set.
+/content/framed
+/export
+# The originals stay on this machine; the site carries web sized copies.
+/content/Exposure Photography Festival

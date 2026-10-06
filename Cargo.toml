@@ -6,7 +6,7 @@ description = "Static site generator and colour analysis for a photography conte
 license = "MIT"
 
 [dependencies]
-image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "tiff"] }
 kamadak-exif = "0.6"
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"

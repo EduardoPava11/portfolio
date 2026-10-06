@@ -6,3 +6,12 @@ base_url = "https://eduardopava11.github.io/portfolio/"
 # Uncomment to show contact details in the footer.
 # email = "you@example.com"
 # instagram = "yourhandle"
+
+# Where the photographs are, relative to content/.
+photos_dir = "Exposure Photography Festival"
+# Last name used in submission file names (01_LastName.jpeg).
+last_name = "Mosquera"
+# The matte CLI (github.com/... ~/MATTE) that chooses and draws the borders.
+matte_bin = "/Users/daniel/MATTE/target/release/matte"
+# Show the framed copies on the site (content/framed/, made by `portfolio frame`).
+framed = true

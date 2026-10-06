@@ -14,10 +14,23 @@ pub const LARGE_SIDE: u32 = 2000;
 pub const THUMB_SIDE: u32 = 800;
 const JPEG_QUALITY: u8 = 88;
 
-/// Decode and rotate so that the pixels are upright.
+/// Decode the original and rotate so that the pixels are upright.
 pub fn open_upright(photo: &Photo) -> Result<DynamicImage> {
-    let img = ImageReader::open(&photo.path)?.with_guessed_format()?.decode()?;
-    Ok(apply_orientation(img, photo.orientation))
+    open_path(&photo.path, photo.orientation)
+}
+
+/// Decode the file the site shows (framed copy or original).
+pub fn open_display(photo: &Photo) -> Result<DynamicImage> {
+    let o = if photo.display == photo.path { photo.orientation } else { 1 };
+    open_path(&photo.display, o)
+}
+
+pub fn open_path(path: &Path, orientation: u32) -> Result<DynamicImage> {
+    let img = ImageReader::open(path)?
+        .with_guessed_format()?
+        .decode()
+        .map_err(|e| format!("{}: {e}", path.display()))?;
+    Ok(apply_orientation(img, orientation))
 }
 
 /// EXIF orientation values 1 to 8 (TIFF 6.0, section 8).

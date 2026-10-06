@@ -3,6 +3,9 @@
 //!   cargo run --release -- build          write the site
 //!   cargo run --release -- red [opts]     analyse the reds in every photograph
 //!   cargo run --release -- all [opts]     both
+//!   cargo run --release -- lab            CIELAB reading of every pixel; writes the colour order
+//!   cargo run --release -- frame [opts]   borders via matte into content/framed/
+//!   cargo run --release -- export         submission JPEGs (5 MB, 01_LastName.jpeg)
 //!
 //! Red options:  --chroma-floor F    minimum OKLCh chroma for a pixel to count as coloured (default 0.04)
 //!               --hue LO HI         red sector in OKLCh degrees (default: derived from the sRGB primaries)
@@ -10,7 +13,10 @@
 
 mod color;
 mod content;
+mod export;
+mod frame;
 mod images;
+mod lab;
 mod red;
 mod site;
 
@@ -26,9 +32,16 @@ fn main() {
     let outcome = match cmd {
         "build" => site::build(root),
         "red" => red::run(root, &args[1..]),
+        "lab" => lab::run(root),
+        "frame" => frame::run(root, &args[1..]),
+        "export" => export::run(root),
         "all" => site::build(root).and_then(|_| red::run(root, &args[1..])),
         _ => {
-            eprintln!("usage: portfolio [build|red|all] [--chroma-floor F] [--hue LO HI] [--side N]");
+            eprintln!("usage: portfolio [build|lab|frame|export|red|all]");
+            eprintln!("  lab      read every photograph in CIELAB, write the colour order");
+            eprintln!("  frame    borders via matte -> content/framed/ (pass matte options after the command)");
+            eprintln!("  export   submission JPEGs from content/selection.txt -> export/");
+            eprintln!("  red      red analysis [--chroma-floor F] [--hue LO HI] [--side N]");
             std::process::exit(2);
         }
     };
