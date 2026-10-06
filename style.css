@@ -1,0 +1,147 @@
+/* Form follows function: the picture is the page. Everything else is black and white,
+   at the edges, and bold where it speaks. The only colour is the pictures', their mats'
+   and the strip of their centroids. */
+:root {
+  --ground: #0b0b0a;
+  --ink: #f2eee8;
+  --muted: #9a938a;
+  --rule: #2a2825;
+  --top: 56px;
+  --strip: 10px;
+  --strip-hit: 28px;
+  --font: 'IBM Plex Sans', system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html { background: var(--ground); color: var(--ink); height: 100%; }
+body {
+  margin: 0; height: 100%; overflow: hidden;
+  font: 16px/1.5 var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+h1, h2 { margin: 0; }
+
+/* The reel: one screen at a time, snapped. */
+.reel {
+  height: 100%; height: 100dvh;
+  overflow-y: auto; overscroll-behavior-y: contain;
+  scroll-snap-type: y mandatory; scroll-behavior: smooth;
+  scrollbar-width: none;
+}
+.reel::-webkit-scrollbar { display: none; }
+
+.slide {
+  position: relative;
+  height: 100vh; height: 100dvh;
+  scroll-snap-align: start; scroll-snap-stop: always;
+  padding: var(--top) 16px calc(var(--strip-hit) + 64px);
+  display: flex; align-items: center; justify-content: center;
+}
+.slide picture { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+.slide img {
+  display: block; max-width: 100%; max-height: 100%; width: auto; height: auto;
+  background-size: 100% 100%; background-repeat: no-repeat;
+}
+
+/* Motion: each screen settles into place as it snaps. */
+.slide img, .slide .text-inner, .slide .start-inner, .slide .colophon-inner {
+  opacity: 0; transform: translateY(18px) scale(0.985);
+  transition: opacity 520ms ease, transform 680ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.slide.in img, .slide.in .text-inner, .slide.in .start-inner, .slide.in .colophon-inner { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .reel { scroll-behavior: auto; }
+  .slide img, .slide .text-inner, .slide .start-inner, .slide .colophon-inner { opacity: 1; transform: none; transition: none; }
+}
+
+/* The counter: big, bold, bottom left. */
+.cap {
+  position: absolute; left: 16px; right: 16px; bottom: calc(var(--strip-hit) + 10px);
+  margin: 0; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  font-size: 0.85rem; color: var(--muted); letter-spacing: 0.02em;
+}
+.cap .n { font-size: 2rem; font-weight: 700; line-height: 1; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.cap .of { font-size: 1rem; font-weight: 500; color: var(--muted); margin-left: -8px; }
+.cap .t { color: var(--ink); font-weight: 500; }
+.cap .long { display: block; width: 100%; max-width: 60ch; }
+
+/* Opening screen: the body of work as a band of colour, under a bold name. */
+.start .start-inner { width: 100%; max-width: 1100px; }
+.start .series { font-size: 0.8rem; font-weight: 500; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin: 0 0 1rem; }
+.start h1 { font-size: clamp(2.4rem, 9vw, 7rem); font-weight: 700; line-height: 0.95; letter-spacing: -0.03em; }
+.start .tagline { color: var(--muted); font-size: clamp(1rem, 2.2vw, 1.4rem); margin: 1rem 0 0; max-width: 36ch; }
+.band { display: flex; height: clamp(72px, 16vh, 140px); margin: 2rem 0 1rem; }
+.band a { flex: 1; display: block; transition: transform 160ms ease; transform-origin: bottom; }
+.band a:hover, .band a:focus-visible { transform: scaleY(1.18); outline: none; }
+.start .count { color: var(--muted); font-size: 0.9rem; margin: 0; }
+.start .count b { color: var(--ink); font-weight: 600; }
+.start .begin { display: inline-block; margin-top: 1.6rem; text-decoration: none; font-size: 1.6rem; color: var(--muted); }
+.start .begin:hover { color: var(--ink); }
+
+/* The top edge: a name, three words. */
+.top {
+  position: fixed; top: 0; left: 0; right: 0; height: var(--top); z-index: 3;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px; padding-top: env(safe-area-inset-top);
+  background: linear-gradient(var(--ground) 30%, transparent);
+  pointer-events: none;
+}
+.top > * { pointer-events: auto; }
+.top .name { text-decoration: none; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.01em; }
+.top nav { display: flex; gap: 1.1rem; }
+.top nav a {
+  text-decoration: none; font-size: 0.78rem; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
+  padding: 10px 0;
+}
+.top nav a:hover, .top nav a.current { color: var(--ink); }
+
+/* The bottom edge: the sequence, as the pictures' own centroids. */
+.strip {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 3;
+  display: flex; height: calc(var(--strip-hit) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--ground);
+}
+.strip a {
+  flex: 1; display: block; height: 100%;
+  padding-top: calc(var(--strip-hit) - var(--strip));
+  background-clip: content-box;
+  transition: padding-top 120ms ease, opacity 200ms ease;
+}
+.strip a:hover, .strip a:focus-visible { padding-top: calc(var(--strip-hit) - var(--strip) - 8px); outline: none; }
+.strip a.current { padding-top: 0; box-shadow: inset 0 3px 0 var(--ink); }
+.strip.away a { opacity: 0.4; }
+
+/* Text screens: statement, bio. The first sentence of the statement leads, bold. */
+.text .text-inner { width: 100%; max-width: 46rem; max-height: 100%; overflow-y: auto; padding: 0 4px; }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.section-head h2 { font-size: 0.8rem; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+.prose { margin-top: 1.2rem; font-size: clamp(1rem, 1.6vw, 1.15rem); line-height: 1.6; }
+.prose p { margin: 0 0 1.1em; }
+#statement .prose p:first-child { font-size: clamp(1.35rem, 3vw, 2rem); font-weight: 600; line-height: 1.25; letter-spacing: -0.015em; margin-bottom: 1.2em; }
+.copy {
+  font-size: 0.78rem; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
+  border: 1px solid var(--rule); padding: 0.5rem 1rem; border-radius: 999px; color: var(--muted);
+}
+.copy:hover { border-color: var(--ink); color: var(--ink); }
+.copy.done { border-color: var(--ink); color: var(--ink); }
+
+/* Closing screen. */
+.colophon { text-align: center; }
+.colophon h2 { font-size: 1.6rem; font-weight: 600; margin-bottom: 1.2rem; }
+.colophon .contact, .colophon .back { color: var(--muted); font-size: 0.95rem; margin: 0.4rem 0; }
+
+/* Touch: bigger targets, no hover states to rely on. */
+@media (pointer: coarse) {
+  :root { --strip-hit: 34px; --strip: 12px; }
+  .top nav { gap: 1rem; }
+  .top nav a { padding: 14px 2px; }
+  .copy { padding: 0.65rem 1.2rem; }
+}
+/* Narrow screens: the name yields to the three words. */
+@media (max-width: 420px) {
+  .top .name { font-size: 0.85rem; }
+  .top nav a { font-size: 0.75rem; letter-spacing: 0.08em; }
+  .cap .n { font-size: 1.7rem; }
+}
