@@ -1,0 +1,12 @@
+# The body of work, in viewing order.
+#
+# Drop image files (jpg, jpeg or png) into content/photos/. Every file there is
+# included. Files listed here appear first, in this order, with their captions;
+# any file not listed is appended in alphabetical order with no caption.
+# The season and year are read from the photo's EXIF capture date when present.
+#
+# [[photo]]
+# file = "001-river-january.jpg"
+# title = "The river, January"
+# place = "Edmonton, Alberta"
+# caption = "Optional longer caption."

@@ -1,0 +1,19 @@
+[package]
+name = "portfolio"
+version = "0.1.0"
+edition = "2021"
+description = "Static site generator and colour analysis for a photography contest entry."
+license = "MIT"
+
+[dependencies]
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+kamadak-exif = "0.6"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+rayon = "1"
+
+[profile.dev]
+opt-level = 2
+
+[profile.release]
+opt-level = 3

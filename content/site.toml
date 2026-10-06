@@ -1,0 +1,8 @@
+# Site wide settings. Edit freely; rebuild with `cargo run --release -- build`.
+name = "Daniel E. Mosquera P."
+title = "Daniel E. Mosquera P. | Photography"
+tagline = "How familiar places change with the seasons"
+base_url = "https://eduardopava11.github.io/portfolio/"
+# Uncomment to show contact details in the footer.
+# email = "you@example.com"
+# instagram = "yourhandle"
