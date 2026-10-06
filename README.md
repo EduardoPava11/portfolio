@@ -100,24 +100,32 @@ Daniel's rule: the borders reflect the colours of the pictures, so they change f
 picture to picture; everything else on the site is constant black and white.
 
 `portfolio lab` derives each picture's mat from the CIELAB reading. The hue is the
-picture's own chroma weighted hue. The lightness is one value for the whole set, so
+picture's own chroma weighted hue (`--hue own`), or its CIELAB opponent 180 degrees
+away (`--hue opponent`), or a split complement at 150 (`--hue split`). The lightness
+is one value for the whole set, so
 the surround never jumps from frame to frame. The chroma is paced over the sequence:
 a raised cosine envelope that sits at the `--floor` level on the first and last
 picture and reaches the `--intensity` level at the centre, so the body opens and
 closes quietly and peaks in the middle. Both levels come from the set's own
 statistics in matte's vocabulary:
 
-| | dark | mid (default) | light |
-| --- | --- | --- | --- |
-| L* | 15th percentile of the pictures' median L* | 50th | 85th |
+| | ink | dark | mid | light | paper (chosen 2026-10-05) |
+| --- | --- | --- | --- | --- | --- |
+| L* | halfway from the 5th percentile of median L* to black | 15th percentile | 50th | 85th | halfway from the 95th to white |
 
 | | mute (default floor) | balanced | statement (default centre) |
 | --- | --- | --- | --- |
 | C* | half the pictures' mean chroma | the mean | 90th percentile |
 
 Out of gamut mats are mapped by holding L* and hue and bisecting on chroma. The
-result is the `mat_hex` column of `analysis/lab/lab.csv` and the second swatch on the
-contact sheet.
+result is the `mat_hex` column of `analysis/lab/lab.csv`, the second swatch on the
+contact sheet, and the flags recorded in `analysis/lab/mat-law.txt`.
+
+To choose a law from pictures rather than words, `portfolio proof` renders eight
+candidate laws across seven pictures spread over the sequence into
+`analysis/mats/index.html`. The mid register in the picture's own hue was rejected
+on 2026-10-05 (it repeats the picture and turns to mud at the centre); the paper
+register in the picture's own hue, a tinted mat board, is what the site carries.
 
 `portfolio frame` then runs `matte frame` (`~/MATTE`) once per picture with
 `--color <mat_hex>`; matte grows the canvas without resampling. The mats are cut with
@@ -129,6 +137,22 @@ options may follow the command, for example `portfolio frame -- --border 0.08`.
 cargo run --release -- lab --register light --intensity balanced --floor mute   # a different mat law
 cargo run --release -- frame --force -- --bottom-weight 1.15                     # reframe all
 ```
+
+## Type
+
+`portfolio fonts` sets the name, the nav words, a caption and the first paragraph of
+the statement in every candidate listed in `content/fonts.toml` and writes
+`analysis/fonts/index.html`. Pick by reading, then copy that candidate's `family`
+and `css` into `font_family` and `font_css` in `content/site.toml` and rebuild.
+System faces need no `css`; a web face loads from Google Fonts and the site then
+depends on it.
+
+## The screens
+
+Opening screen (series title when set, name, tagline, count), then one screen per
+picture, then Artist statement, Bio and Contact as screens of their own. The nav
+words at the top right scroll to them. The strip of centroids dims when a text screen
+is up. `series_title` in `site.toml` names the body of work on the opening screen.
 
 ## Publishing
 
