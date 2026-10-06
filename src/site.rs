@@ -114,7 +114,8 @@ fn index_html(c: &Content, sizes: &[(u32, u32)]) -> String {
 }
 
 fn figure(p: &Photo, index: usize, w: u32, h: u32) -> String {
-    let title = p.title();
+    // Untitled pictures are captioned by their place in the sequence, not by the scan ID.
+    let title = p.meta.title.clone().unwrap_or_else(|| format!("{:02}", index + 1));
     let when = p.when();
     let mut cap = esc(&title);
     let mut detail: Vec<String> = Vec::new();
