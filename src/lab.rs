@@ -134,13 +134,16 @@ pub struct Reading {
 pub struct MatOptions {
     /// dark: 15th percentile of the pictures' median L*; mid: 50th; light: 85th.
     pub register: String,
-    /// mute: half the pictures' mean chroma; balanced: the mean; statement: the 90th percentile.
+    /// Chroma at the CENTRE of the sequence. mute: half the pictures' mean chroma;
+    /// balanced: the mean; statement: the 90th percentile.
     pub intensity: String,
+    /// Chroma at the two ENDS of the sequence, same vocabulary.
+    pub floor: String,
 }
 
 impl MatOptions {
     fn parse(args: &[String]) -> Result<MatOptions> {
-        let mut o = MatOptions { register: "mid".into(), intensity: "mute".into() };
+        let mut o = MatOptions { register: "mid".into(), intensity: "statement".into(), floor: "mute".into() };
         let mut i = 0;
         while i < args.len() {
             match args[i].as_str() {
@@ -152,14 +155,20 @@ impl MatOptions {
                     o.intensity = args.get(i + 1).ok_or("--intensity needs mute|balanced|statement")?.clone();
                     i += 2;
                 }
+                "--floor" => {
+                    o.floor = args.get(i + 1).ok_or("--floor needs mute|balanced|statement")?.clone();
+                    i += 2;
+                }
                 other => return Err(format!("unknown option {other}").into()),
             }
         }
         if !["dark", "mid", "light"].contains(&o.register.as_str()) {
             return Err(format!("--register must be dark, mid or light, not {}", o.register).into());
         }
-        if !["mute", "balanced", "statement"].contains(&o.intensity.as_str()) {
-            return Err(format!("--intensity must be mute, balanced or statement, not {}", o.intensity).into());
+        for (flag, v) in [("--intensity", &o.intensity), ("--floor", &o.floor)] {
+            if !["mute", "balanced", "statement"].contains(&v.as_str()) {
+                return Err(format!("{flag} must be mute, balanced or statement, not {v}").into());
+            }
         }
         Ok(o)
     }
@@ -171,9 +180,12 @@ fn sorted_percentile(values: &mut Vec<f32>, q: f32) -> f32 {
     values[i.min(values.len() - 1)]
 }
 
-/// One L* and one C* for the whole set, so the sequence does not strobe; each
-/// picture's own hue, so the mat belongs to the picture. Gamut mapped on chroma.
-fn derive_mats(rs: &mut [Reading], o: &MatOptions) -> (f32, f32) {
+/// The mats as a sequence, not a set of singles. L* is one value for the whole set so
+/// the surround never jumps between frames. Hue is each picture's own. Chroma follows
+/// a raised cosine envelope over sequence position: the floor at the first and last
+/// picture, the full intensity at the centre, so the body opens and closes quietly and
+/// peaks in the middle, the way a sequence is paced. Returns (L*, C* floor, C* peak).
+fn derive_mats(rs: &mut [Reading], o: &MatOptions) -> (f32, f32, f32) {
     let mut ls: Vec<f32> = rs.iter().map(|r| r.median_l).collect();
     let mut cs: Vec<f32> = rs.iter().map(|r| r.mean_c).collect();
     let l = match o.register.as_str() {
@@ -182,16 +194,22 @@ fn derive_mats(rs: &mut [Reading], o: &MatOptions) -> (f32, f32) {
         _ => sorted_percentile(&mut ls, 0.50),
     };
     let mean_c = cs.iter().sum::<f32>() / cs.len().max(1) as f32;
-    let c = match o.intensity.as_str() {
+    let p90_c = sorted_percentile(&mut cs, 0.90);
+    let level = |name: &str| match name {
         "balanced" => mean_c,
-        "statement" => sorted_percentile(&mut cs, 0.90),
+        "statement" => p90_c,
         _ => 0.5 * mean_c,
     };
-    for r in rs.iter_mut() {
+    let (floor, peak) = (level(&o.floor), level(&o.intensity));
+    let n = rs.len();
+    for (i, r) in rs.iter_mut().enumerate() {
+        let t = if n > 1 { i as f32 / (n - 1) as f32 } else { 0.5 };
+        let envelope = 0.5 - 0.5 * (2.0 * std::f32::consts::PI * t).cos();
+        let c = floor + (peak - floor) * envelope;
         let h = r.hue.to_radians();
         r.mat = Some(Lab { l, a: c * h.cos(), b: c * h.sin() }.gamut_mapped());
     }
-    (l, c)
+    (l, floor, peak)
 }
 
 pub fn run(root: &Path, args: &[String]) -> Result<()> {
@@ -212,8 +230,11 @@ pub fn run(root: &Path, args: &[String]) -> Result<()> {
     println!("lab: {} photographs, {} pixels read in CIELAB in {:.1} s", readings.len(), pixels, started.elapsed().as_secs_f32());
 
     order_by_colour(&mut readings);
-    let (mat_l, mat_c) = derive_mats(&mut readings, &opts);
-    println!("lab: mats at L* {mat_l:.1} ({} register), C* {mat_c:.1} ({}), each in its picture's hue", opts.register, opts.intensity);
+    let (mat_l, mat_floor, mat_peak) = derive_mats(&mut readings, &opts);
+    println!(
+        "lab: mats at L* {mat_l:.1} ({} register); chroma {mat_floor:.1} ({}) at the ends rising to {mat_peak:.1} ({}) at the centre; each in its picture's hue",
+        opts.register, opts.floor, opts.intensity
+    );
 
     let mut order = String::from("# Colour order written by `portfolio lab`. One file stem per line.\n# Edit by hand if you like; `build` and `export` follow this order.\n");
     for r in &readings {
@@ -593,6 +614,21 @@ mod tests {
         order_by_colour(&mut rs);
         let stems: Vec<&str> = rs.iter().map(|r| r.stem.as_str()).collect();
         assert_eq!(stems, ["b", "c", "a", "d"]);
+    }
+
+    #[test]
+    fn mat_chroma_peaks_at_the_centre_and_rests_at_the_ends() {
+        let mut rs: Vec<Reading> = (0..9).map(|i| reading(&format!("p{i}"), 40.0)).collect();
+        for (i, r) in rs.iter_mut().enumerate() {
+            r.mean_c = 10.0 + i as f32;
+            r.median_l = 40.0;
+        }
+        let o = MatOptions { register: "mid".into(), intensity: "statement".into(), floor: "mute".into() };
+        let (_, floor, peak) = derive_mats(&mut rs, &o);
+        let c: Vec<f32> = rs.iter().map(|r| r.mat.unwrap().chroma()).collect();
+        assert!((c[0] - floor).abs() < 0.05 && (c[8] - floor).abs() < 0.05, "{c:?}");
+        assert!((c[4] - peak).abs() < 0.05, "{c:?}");
+        assert!(c[2] > c[0] && c[2] < c[4]);
     }
 
     #[test]

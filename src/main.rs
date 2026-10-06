@@ -41,7 +41,7 @@ fn main() {
         _ => {
             eprintln!("usage: portfolio [build|lab|frame|export|red|all]");
             eprintln!("  lab      read every photograph in CIELAB, write the colour order and each picture's mat");
-            eprintln!("           [--register dark|mid|light] [--intensity mute|balanced|statement]");
+            eprintln!("           [--register dark|mid|light] [--intensity <centre>] [--floor <ends>]  (mute|balanced|statement)");
             eprintln!("  frame    borders via matte -> content/framed/ (pass matte options after the command)");
             eprintln!("  export   submission JPEGs from content/selection.txt -> export/");
             eprintln!("  rename   number the files 01-, 02-, ... in colour order (a file named end goes last)");

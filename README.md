@@ -100,15 +100,18 @@ Daniel's rule: the borders reflect the colours of the pictures, so they change f
 picture to picture; everything else on the site is constant black and white.
 
 `portfolio lab` derives each picture's mat from the CIELAB reading. The hue is the
-picture's own chroma weighted hue. The lightness and the chroma are one value for the
-whole set, so the sequence does not strobe from frame to frame, and both come from the
-set's own statistics in matte's vocabulary:
+picture's own chroma weighted hue. The lightness is one value for the whole set, so
+the surround never jumps from frame to frame. The chroma is paced over the sequence:
+a raised cosine envelope that sits at the `--floor` level on the first and last
+picture and reaches the `--intensity` level at the centre, so the body opens and
+closes quietly and peaks in the middle. Both levels come from the set's own
+statistics in matte's vocabulary:
 
 | | dark | mid (default) | light |
 | --- | --- | --- | --- |
 | L* | 15th percentile of the pictures' median L* | 50th | 85th |
 
-| | mute (default) | balanced | statement |
+| | mute (default floor) | balanced | statement (default centre) |
 | --- | --- | --- | --- |
 | C* | half the pictures' mean chroma | the mean | 90th percentile |
 
@@ -117,13 +120,14 @@ result is the `mat_hex` column of `analysis/lab/lab.csv` and the second swatch o
 contact sheet.
 
 `portfolio frame` then runs `matte frame` (`~/MATTE`) once per picture with
-`--color <mat_hex>`; matte grows the canvas without resampling. About 4.5 s per
-picture. Only missing or stale frames are redone; `--force` redoes all. Other matte
+`--color <mat_hex>`; matte grows the canvas without resampling. The mats are cut with
+`--bottom-weight 1.15`, the optical centring of traditional mat cutting. About 4.5 s
+per picture. Only missing or stale frames are redone; `--force` redoes all. Other matte
 options may follow the command, for example `portfolio frame -- --border 0.08`.
 
 ```sh
-cargo run --release -- lab --register light --intensity balanced   # a different mat law
-cargo run --release -- frame --force                                # reframe all
+cargo run --release -- lab --register light --intensity balanced --floor mute   # a different mat law
+cargo run --release -- frame --force -- --bottom-weight 1.15                     # reframe all
 ```
 
 ## Publishing
