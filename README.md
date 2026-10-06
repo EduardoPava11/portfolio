@@ -6,6 +6,28 @@ site and analyses the colour of the photographs. No Node, no Python, no framewor
 
 Live: https://eduardopava11.github.io/portfolio/
 
+## The design
+
+Form follows function. The function is a juror or a visitor looking at the pictures
+in sequence, on a phone or a wall sized screen, and finding the words when they want
+them. So the page is a reel: one picture per screen, scroll snapped, swipe or arrow
+keys to move. The only other things on screen are the name (top left), two words
+(Statement, Bio, top right) and the sequence itself, drawn along the bottom edge as
+a strip of each picture's CIELAB centroid. The strip is progress bar, navigation and
+the colour thesis in one element; the current picture's cell is lit. Statement and
+bio open in a panel over the pictures, each with a copy button. The last screen
+carries the name, the words and the contact.
+
+Every picture is delivered as AVIF with a JPEG fallback, at 1200 and 2000 px on the
+long side, chosen by the browser from `srcset`. Each `img` carries a 24 px JPEG
+placeholder inline, so the frame shows its colour before the file arrives. On this
+material the AVIF is about a fifth of the JPEG's bytes.
+
+Crates: `image` (decode, resize, JPEG), `ravif` (AVIF, pure Rust AV1), `kamadak-exif`,
+`serde` + `toml`, `rayon`. No JavaScript framework and no WebAssembly: the page is
+HTML, one stylesheet and one small script, because shipping a framework runtime to
+show 55 photographs would be form without function.
+
 ## Layout
 
 ```

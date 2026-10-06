@@ -173,6 +173,7 @@ fn analyse(photo: &Photo, o: &Options, out: &Path) -> Result<Reds> {
     }
 
     mask.save(out.join(format!("{}.png", photo.stem)))?;
+    images::write_jpeg(&images::fit(&images::open_upright(photo)?, 480), &out.join(format!("{}.jpg", photo.stem)))?;
 
     let n = red.max(1) as f64;
     let mean_h = if red == 0 { 0.0 } else { (sum_b.atan2(sum_a).to_degrees().rem_euclid(360.0)) as f32 };
@@ -329,7 +330,7 @@ svg.bars rect {{ fill: #d9634c; }}
         };
         h.push_str(&format!(
             r#"<div class="card">
-  <img src="../../docs/img/thumb/{stem}.jpg" alt="{title}">
+  <img src="{stem}.jpg" alt="{title}">
   <img src="{stem}.png" alt="red mask of {title}">
   <div>
     <h2>{swatch}{title} <span class="when">{when}</span></h2>

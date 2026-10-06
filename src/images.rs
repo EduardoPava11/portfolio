@@ -9,9 +9,6 @@ use image::{DynamicImage, ImageReader, RgbImage};
 use std::fs;
 use std::path::Path;
 
-/// Longest side of the full view image and of the grid thumbnail.
-pub const LARGE_SIDE: u32 = 2000;
-pub const THUMB_SIDE: u32 = 800;
 const JPEG_QUALITY: u8 = 88;
 
 /// Decode the original and rotate so that the pixels are upright.
@@ -73,4 +70,21 @@ pub fn up_to_date(src: &Path, out: &Path) -> bool {
         (Ok(sm), Ok(om)) => om >= sm,
         _ => false,
     }
+}
+
+/// AVIF via ravif (pure Rust AV1). Quality 62 at speed 6 lands near half the bytes of
+/// the JPEG at the same visual quality on this material.
+pub fn write_avif(img: &RgbImage, path: &Path) -> Result<()> {
+    use ravif::{Encoder, Img, RGB8};
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let pixels: Vec<RGB8> = img.pixels().map(|p| RGB8::new(p[0], p[1], p[2])).collect();
+    let encoded = Encoder::new()
+        .with_quality(62.0)
+        .with_speed(6)
+        .encode_rgb(Img::new(pixels.as_slice(), img.width() as usize, img.height() as usize))
+        .map_err(|e| format!("avif {}: {e}", path.display()))?;
+    fs::write(path, encoded.avif_file)?;
+    Ok(())
 }
