@@ -1,4 +1,6 @@
-# Portfolio
+# Exposure Photography Festival Sub.
+
+Live: https://eduardopava11.github.io/portfolio/
 
 A static website for a photography contest entry: the connected body of work, the
 artist statement and the bio, each with a copy button. One Rust binary builds the
