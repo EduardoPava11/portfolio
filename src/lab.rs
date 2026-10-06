@@ -263,8 +263,24 @@ fn percentile(hist: &[u64], q: f64) -> f32 {
 }
 
 /// Sort by hue; cut the circle at the widest empty gap so the sequence starts
-/// just after the gap and no colour family is torn in two.
-fn order_by_colour(rs: &mut [Reading]) {
+/// just after the gap and no colour family is torn in two. A photograph whose
+/// file is named `end` (with or without a number prefix) is pinned as the last
+/// picture: that is the author's closing frame, not the colour's.
+fn order_by_colour(rs: &mut Vec<Reading>) {
+    let mut tail = Vec::new();
+    let mut i = 0;
+    while i < rs.len() {
+        if crate::rename::strip_prefix(&rs[i].stem) == "end" {
+            tail.push(rs.remove(i));
+        } else {
+            i += 1;
+        }
+    }
+    sort_hue_cut_gap(rs);
+    rs.extend(tail);
+}
+
+fn sort_hue_cut_gap(rs: &mut [Reading]) {
     rs.sort_by(|a, b| a.hue.partial_cmp(&b.hue).unwrap());
     if rs.len() < 2 {
         return;
@@ -465,5 +481,13 @@ mod tests {
         order_by_colour(&mut rs);
         let stems: Vec<&str> = rs.iter().map(|r| r.stem.as_str()).collect();
         assert_eq!(stems, ["b", "c", "a", "d"]);
+    }
+
+    #[test]
+    fn end_is_pinned_last_whatever_its_hue() {
+        let mut rs = vec![reading("a", 10.0), reading("33-end", 200.0), reading("c", 350.0)];
+        order_by_colour(&mut rs);
+        let stems: Vec<&str> = rs.iter().map(|r| r.stem.as_str()).collect();
+        assert_eq!(stems, ["c", "a", "33-end"]);
     }
 }

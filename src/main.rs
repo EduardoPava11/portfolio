@@ -18,6 +18,7 @@ mod frame;
 mod images;
 mod lab;
 mod red;
+mod rename;
 mod site;
 
 use std::error::Error;
@@ -35,12 +36,14 @@ fn main() {
         "lab" => lab::run(root),
         "frame" => frame::run(root, &args[1..]),
         "export" => export::run(root),
+        "rename" => rename::run(root),
         "all" => site::build(root).and_then(|_| red::run(root, &args[1..])),
         _ => {
             eprintln!("usage: portfolio [build|lab|frame|export|red|all]");
             eprintln!("  lab      read every photograph in CIELAB, write the colour order");
             eprintln!("  frame    borders via matte -> content/framed/ (pass matte options after the command)");
             eprintln!("  export   submission JPEGs from content/selection.txt -> export/");
+            eprintln!("  rename   number the files 01-, 02-, ... in colour order (a file named end goes last)");
             eprintln!("  red      red analysis [--chroma-floor F] [--hue LO HI] [--side N]");
             std::process::exit(2);
         }
