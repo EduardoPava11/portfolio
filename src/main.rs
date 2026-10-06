@@ -33,14 +33,15 @@ fn main() {
     let outcome = match cmd {
         "build" => site::build(root),
         "red" => red::run(root, &args[1..]),
-        "lab" => lab::run(root),
+        "lab" => lab::run(root, &args[1..]),
         "frame" => frame::run(root, &args[1..]),
         "export" => export::run(root),
         "rename" => rename::run(root),
         "all" => site::build(root).and_then(|_| red::run(root, &args[1..])),
         _ => {
             eprintln!("usage: portfolio [build|lab|frame|export|red|all]");
-            eprintln!("  lab      read every photograph in CIELAB, write the colour order");
+            eprintln!("  lab      read every photograph in CIELAB, write the colour order and each picture's mat");
+            eprintln!("           [--register dark|mid|light] [--intensity mute|balanced|statement]");
             eprintln!("  frame    borders via matte -> content/framed/ (pass matte options after the command)");
             eprintln!("  export   submission JPEGs from content/selection.txt -> export/");
             eprintln!("  rename   number the files 01-, 02-, ... in colour order (a file named end goes last)");

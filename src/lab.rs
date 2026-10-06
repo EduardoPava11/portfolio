@@ -45,6 +45,42 @@ impl Lab {
         let (fx, fy, fz) = (f(x / 0.950_47), f(y), f(z / 1.088_83));
         Lab { l: 116.0 * fy - 16.0, a: 500.0 * (fx - fy), b: 200.0 * (fy - fz) }
     }
+    /// Linear light sRGB, unclamped, so callers can see when a colour leaves the gamut.
+    pub fn to_linear(self) -> [f32; 3] {
+        let fy = (self.l + 16.0) / 116.0;
+        let fx = fy + self.a / 500.0;
+        let fz = fy - self.b / 200.0;
+        let (x, y, z) = (finv(fx) * 0.950_47, finv(fy), finv(fz) * 1.088_83);
+        [
+            3.240_454_2 * x - 1.537_138_5 * y - 0.498_531_4 * z,
+            -0.969_266_0 * x + 1.876_010_8 * y + 0.041_556_0 * z,
+            0.055_643_4 * x - 0.204_025_9 * y + 1.057_225_2 * z,
+        ]
+    }
+
+    pub fn in_gamut(self) -> bool {
+        self.to_linear().iter().all(|v| (-1e-4..=1.0 + 1e-4).contains(v))
+    }
+
+    /// Hold L* and hue, bisect on chroma until the colour is displayable.
+    pub fn gamut_mapped(self) -> Lab {
+        if self.in_gamut() {
+            return self;
+        }
+        let (h, mut lo, mut hi) = (self.hue().to_radians(), 0.0f32, self.chroma());
+        for _ in 0..24 {
+            let mid = 0.5 * (lo + hi);
+            let cand = Lab { l: self.l, a: mid * h.cos(), b: mid * h.sin() };
+            if cand.in_gamut() { lo = mid } else { hi = mid }
+        }
+        Lab { l: self.l, a: lo * h.cos(), b: lo * h.sin() }
+    }
+
+    pub fn hex(self) -> String {
+        let [r, g, b] = self.to_srgb8();
+        format!("#{r:02X}{g:02X}{b:02X}")
+    }
+
     pub fn to_srgb8(self) -> [u8; 3] {
         let fy = (self.l + 16.0) / 116.0;
         let fx = fy + self.a / 500.0;
@@ -89,9 +125,77 @@ pub struct Reading {
     /// colour agrees on one hue, near 0 when hues cancel.
     pub hue_agreement: f32,
     pub hue_hist: Vec<f64>,
+    /// The mat colour for this picture: its own hue at the set's register and intensity.
+    pub mat: Option<Lab>,
 }
 
-pub fn run(root: &Path) -> Result<()> {
+/// How the mats sit against the pictures. Registers and intensities follow matte's
+/// vocabulary and, like matte's, are taken from the set's own statistics, never fixed.
+pub struct MatOptions {
+    /// dark: 15th percentile of the pictures' median L*; mid: 50th; light: 85th.
+    pub register: String,
+    /// mute: half the pictures' mean chroma; balanced: the mean; statement: the 90th percentile.
+    pub intensity: String,
+}
+
+impl MatOptions {
+    fn parse(args: &[String]) -> Result<MatOptions> {
+        let mut o = MatOptions { register: "mid".into(), intensity: "mute".into() };
+        let mut i = 0;
+        while i < args.len() {
+            match args[i].as_str() {
+                "--register" => {
+                    o.register = args.get(i + 1).ok_or("--register needs dark|mid|light")?.clone();
+                    i += 2;
+                }
+                "--intensity" => {
+                    o.intensity = args.get(i + 1).ok_or("--intensity needs mute|balanced|statement")?.clone();
+                    i += 2;
+                }
+                other => return Err(format!("unknown option {other}").into()),
+            }
+        }
+        if !["dark", "mid", "light"].contains(&o.register.as_str()) {
+            return Err(format!("--register must be dark, mid or light, not {}", o.register).into());
+        }
+        if !["mute", "balanced", "statement"].contains(&o.intensity.as_str()) {
+            return Err(format!("--intensity must be mute, balanced or statement, not {}", o.intensity).into());
+        }
+        Ok(o)
+    }
+}
+
+fn sorted_percentile(values: &mut Vec<f32>, q: f32) -> f32 {
+    values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    let i = ((values.len() as f32 - 1.0) * q).round() as usize;
+    values[i.min(values.len() - 1)]
+}
+
+/// One L* and one C* for the whole set, so the sequence does not strobe; each
+/// picture's own hue, so the mat belongs to the picture. Gamut mapped on chroma.
+fn derive_mats(rs: &mut [Reading], o: &MatOptions) -> (f32, f32) {
+    let mut ls: Vec<f32> = rs.iter().map(|r| r.median_l).collect();
+    let mut cs: Vec<f32> = rs.iter().map(|r| r.mean_c).collect();
+    let l = match o.register.as_str() {
+        "dark" => sorted_percentile(&mut ls, 0.15),
+        "light" => sorted_percentile(&mut ls, 0.85),
+        _ => sorted_percentile(&mut ls, 0.50),
+    };
+    let mean_c = cs.iter().sum::<f32>() / cs.len().max(1) as f32;
+    let c = match o.intensity.as_str() {
+        "balanced" => mean_c,
+        "statement" => sorted_percentile(&mut cs, 0.90),
+        _ => 0.5 * mean_c,
+    };
+    for r in rs.iter_mut() {
+        let h = r.hue.to_radians();
+        r.mat = Some(Lab { l, a: c * h.cos(), b: c * h.sin() }.gamut_mapped());
+    }
+    (l, c)
+}
+
+pub fn run(root: &Path, args: &[String]) -> Result<()> {
+    let opts = MatOptions::parse(args)?;
     let content = content::load_originals(root)?;
     let out = root.join("analysis/lab");
     fs::create_dir_all(&out)?;
@@ -108,6 +212,8 @@ pub fn run(root: &Path) -> Result<()> {
     println!("lab: {} photographs, {} pixels read in CIELAB in {:.1} s", readings.len(), pixels, started.elapsed().as_secs_f32());
 
     order_by_colour(&mut readings);
+    let (mat_l, mat_c) = derive_mats(&mut readings, &opts);
+    println!("lab: mats at L* {mat_l:.1} ({} register), C* {mat_c:.1} ({}), each in its picture's hue", opts.register, opts.intensity);
 
     let mut order = String::from("# Colour order written by `portfolio lab`. One file stem per line.\n# Edit by hand if you like; `build` and `export` follow this order.\n");
     for r in &readings {
@@ -119,15 +225,16 @@ pub fn run(root: &Path) -> Result<()> {
     fs::write(out.join("index.html"), report(&readings, &content.site.name))?;
 
     for (i, r) in readings.iter().enumerate() {
-        let [sr, sg, sb] = r.mean.to_srgb8();
         println!(
-            "  {:>2} {:<32} hue {:5.1}  C {:5.1}  L {:5.1}  agree {:.2}  #{sr:02X}{sg:02X}{sb:02X}",
+            "  {:>2} {:<32} hue {:5.1}  C {:5.1}  L {:5.1}  agree {:.2}  {}  mat {}",
             i + 1,
             r.stem,
             r.hue,
             r.mean_c,
             r.mean.l,
-            r.hue_agreement
+            r.hue_agreement,
+            r.mean.hex(),
+            r.mat.map(|m| m.hex()).unwrap_or_default()
         );
     }
     println!("lab: order -> content/order.txt, sheet -> {}", out.join("index.html").display());
@@ -245,6 +352,7 @@ impl Acc {
             hue,
             hue_agreement: agreement.min(1.0),
             hue_hist: self.hue_hist,
+            mat: None,
         }
     }
 }
@@ -299,11 +407,10 @@ fn sort_hue_cut_gap(rs: &mut [Reading]) {
 }
 
 fn csv(rs: &[Reading]) -> String {
-    let mut s = String::from("order,file,width,height,pixels,mean_L,mean_a,mean_b,median_L,mean_C,p90_C,hue_deg,hue_agreement,centroid_hex\n");
+    let mut s = String::from("order,file,width,height,pixels,mean_L,mean_a,mean_b,median_L,mean_C,p90_C,hue_deg,hue_agreement,centroid_hex,mat_hex\n");
     for (i, r) in rs.iter().enumerate() {
-        let [sr, sg, sb] = r.mean.to_srgb8();
         s.push_str(&format!(
-            "{},{},{},{},{},{:.2},{:.2},{:.2},{:.0},{:.2},{:.0},{:.1},{:.3},#{sr:02X}{sg:02X}{sb:02X}\n",
+            "{},{},{},{},{},{:.2},{:.2},{:.2},{:.0},{:.2},{:.0},{:.1},{:.3},{},{}\n",
             i + 1,
             r.stem,
             r.width,
@@ -316,7 +423,9 @@ fn csv(rs: &[Reading]) -> String {
             r.mean_c,
             r.p90_c,
             r.hue,
-            r.hue_agreement
+            r.hue_agreement,
+            r.mean.hex(),
+            r.mat.map(|m| m.hex()).unwrap_or_default()
         ));
     }
     s
@@ -389,7 +498,7 @@ svg.hist {{ width: 100%; max-width: 360px; height: auto; display: block; margin-
         let [sr, sg, sb] = r.mean.to_srgb8();
         h.push_str(&format!(
             r#"<div class="card" id="p{n}">
-  <div><div class="num">{n}</div><div class="swatch" style="background:rgb({sr},{sg},{sb})"></div></div>
+  <div><div class="num">{n}</div><div class="swatch" style="background:rgb({sr},{sg},{sb})" title="centroid"></div><div class="swatch" style="background:{mat}" title="mat {mat}"></div></div>
   <img src="{stem}.jpg" alt="{title}">
   <div>
     <h2>{title}</h2>
@@ -398,6 +507,7 @@ svg.hist {{ width: 100%; max-width: 360px; height: auto; display: block; margin-
       <tr><td>median L*</td><td>{ml:.0}</td></tr>
       <tr><td>chroma mean / p90</td><td>{c:.1} / {c90:.0}</td></tr>
       <tr><td>hue (chroma weighted)</td><td>{hue:.1} deg, agreement {agree:.2}</td></tr>
+      <tr><td>mat</td><td>{mat}</td></tr>
       <tr><td>size</td><td>{w} x {hh}</td></tr>
     </table>
     {hist}
@@ -407,6 +517,7 @@ svg.hist {{ width: 100%; max-width: 360px; height: auto; display: block; margin-
             n = i + 1,
             stem = esc(&r.stem),
             title = esc(&r.title),
+            mat = r.mat.map(|m| m.hex()).unwrap_or_default(),
             l = r.mean.l,
             a = r.mean.a,
             b = r.mean.b,
@@ -470,6 +581,7 @@ mod tests {
             hue,
             hue_agreement: 1.0,
             hue_hist: vec![0.0; HUE_BINS],
+            mat: None,
         }
     }
 

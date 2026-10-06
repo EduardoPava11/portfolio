@@ -57,9 +57,10 @@ cargo run --release -- red       # analyse the reds, open analysis/red/index.htm
 ./deploy.sh                      # build and publish to GitHub Pages
 ```
 
-The order of work for a submission: `lab` to read and order the body by colour,
-`frame` to put the mat on, prune `content/selection.txt` to the pictures you are
-sending, `export` to write the numbered JPEGs, `build` and `./deploy.sh` for the site.
+The order of work for a submission: `lab` to read and order the body by colour and
+derive the mats, `rename` to number the files, `frame` to put the mats on, prune
+`content/selection.txt` to the pictures you are sending, `export` to write the
+numbered JPEGs, `build` and `./deploy.sh` for the site.
 
 ## The Exposure 2027 calls (read 2026-10-05)
 
@@ -93,52 +94,37 @@ gap between neighbouring photographs, so the sequence never splits a colour fami
 The result is `content/order.txt`, which `build` and `export` follow, and a contact
 sheet at `analysis/lab/index.html` with the numbers in `lab.csv`.
 
-## Borders
+## Borders: a mat for every picture
 
-`cargo run --release -- frame` hands the originals to `matte` (`~/MATTE`), which
-measures the set in CAM16-UCS, proposes mat colours from the set's own statistics,
-and grows the canvas around each photograph without resampling. The top ranked
-candidate is used unless `--pick <id>` or `--color "#RRGGBB"` follows the command;
-`matte analyze <folder>` lists the candidates. Framed copies go to `content/framed/`
-and, with `framed = true` in `site.toml`, are what the site and the export show.
+Daniel's rule: the borders reflect the colours of the pictures, so they change from
+picture to picture; everything else on the site is constant black and white.
 
-Photographs: drop files into the folder named by `photos_dir` in `site.toml`. Every file there is included. List the
-ones you want first in `content/photos.toml` with a title, place and caption; the rest
-follow in alphabetical order. The season and year under each photograph come from the
-EXIF capture date (meteorological seasons: Dec to Feb winter, Mar to May spring, Jun to
-Aug summer, Sep to Nov autumn). EXIF orientation is applied, so phone photos come out
-upright. Web copies are 2000 px on the long side for viewing and 800 px for the grid;
-the originals never leave this folder.
+`portfolio lab` derives each picture's mat from the CIELAB reading. The hue is the
+picture's own chroma weighted hue. The lightness and the chroma are one value for the
+whole set, so the sequence does not strobe from frame to frame, and both come from the
+set's own statistics in matte's vocabulary:
 
-Words: edit `content/bio.txt` and `content/statement.txt`, rebuild. The copy button on
-the site copies exactly those paragraphs, separated by blank lines.
+| | dark | mid (default) | light |
+| --- | --- | --- | --- |
+| L* | 15th percentile of the pictures' median L* | 50th | 85th |
 
-## Red analysis
+| | mute (default) | balanced | statement |
+| --- | --- | --- | --- |
+| C* | half the pictures' mean chroma | the mean | 90th percentile |
 
-`cargo run --release -- red` reads every photograph at 1200 px on the long side,
-converts each pixel to OKLab and measures it in OKLCh terms: lightness L, chroma C
-(distance from grey) and hue angle h. A pixel counts as red when its chroma clears the
-floor (default 0.04, so greys never vote) and its hue falls in the red sector. By default
-the sector is derived from the display primaries: from the hue halfway between sRGB
-magenta and red, to the hue halfway between red and yellow (358.8 to 69.5 degrees).
-That is wide enough to include orange; narrow it with `--hue LO HI`.
+Out of gamut mats are mapped by holding L* and hue and bisecting on chroma. The
+result is the `mat_hex` column of `analysis/lab/lab.csv` and the second swatch on the
+contact sheet.
+
+`portfolio frame` then runs `matte frame` (`~/MATTE`) once per picture with
+`--color <mat_hex>`; matte grows the canvas without resampling. About 4.5 s per
+picture. Only missing or stale frames are redone; `--force` redoes all. Other matte
+options may follow the command, for example `portfolio frame -- --border 0.08`.
 
 ```sh
-cargo run --release -- red --hue 10 50 --chroma-floor 0.06 --side 1600
+cargo run --release -- lab --register light --intensity balanced   # a different mat law
+cargo run --release -- frame --force                                # reframe all
 ```
-
-Output in `analysis/red/`:
-
-- `index.html`: a contact sheet in viewing order. For each photograph: the thumbnail,
-  the red mask (red pixels in colour, everything else as grey of the same lightness),
-  a hue histogram over the whole wheel with the red sector marked, the red fraction,
-  the red share of all colour, the mean red in L, C and h, and small histograms of
-  red lightness and red chroma. The whole body is summed at the top.
-- `red.csv`: the same numbers, one row per photograph, for a spreadsheet.
-- `<file>.png`: the masks.
-
-The mean hue is a circular mean (unit vectors averaged, not angles), so reds that
-straddle 0 degrees do not average to cyan.
 
 ## Publishing
 
