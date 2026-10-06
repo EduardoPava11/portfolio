@@ -15,3 +15,9 @@ last_name = "Mosquera"
 matte_bin = "/Users/daniel/MATTE/target/release/matte"
 # Show the framed copies on the site (content/framed/, made by `portfolio frame`).
 framed = true
+
+# Type. Run `portfolio fonts`, open analysis/fonts/index.html, pick, paste here.
+font_family = "Georgia, 'Iowan Old Style', 'Palatino Linotype', serif"
+font_css = ""
+# Title of the body of work. Shown on the opening screen when set.
+# series_title = "Nothing Had Moved Except the Year"

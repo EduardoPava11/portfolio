@@ -1,25 +1,32 @@
 (function () {
   var reel = document.getElementById('reel');
-  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide[data-n]'));
+  var slides = Array.prototype.slice.call(reel.querySelectorAll('.slide'));
+  var pictures = slides.filter(function (s) { return s.hasAttribute('data-n'); });
   var cells = Array.prototype.slice.call(document.querySelectorAll('.strip a'));
-  var panel = document.getElementById('panel');
+  var strip = document.querySelector('.strip');
+  var navLinks = Array.prototype.slice.call(document.querySelectorAll('.top nav a'));
 
-  // Land on the picture named in the URL, instantly, before anything observes the reel.
-  var start = 0;
-  var m = /^#p(\d+)$/.exec(location.hash);
-  if (m && slides[parseInt(m[1], 10) - 1]) {
-    start = parseInt(m[1], 10) - 1;
-    reel.style.scrollBehavior = 'auto';
-    reel.scrollTop = slides[start].offsetTop;
-    reel.style.scrollBehavior = '';
+  // Land on the screen named in the URL, instantly, before anything observes the reel.
+  var startSlide = slides[0];
+  if (location.hash) {
+    var target = document.getElementById(location.hash.slice(1));
+    if (target && slides.indexOf(target) >= 0) startSlide = target;
   }
+  reel.style.scrollBehavior = 'auto';
+  reel.scrollTop = startSlide.offsetTop;
+  reel.style.scrollBehavior = '';
 
-  // Which picture is on screen: light its cell in the strip, keep the hash honest.
-  var current = start;
+  // Which screen is up: light its strip cell, mark the nav word, keep the hash honest.
+  var current = slides.indexOf(startSlide);
   function setCurrent(i) {
     current = i;
-    cells.forEach(function (c, j) { c.classList.toggle('current', j === i); });
-    if (history.replaceState) history.replaceState(null, '', '#p' + String(i + 1).padStart(2, '0'));
+    var s = slides[i];
+    var pi = pictures.indexOf(s);
+    cells.forEach(function (c, j) { c.classList.toggle('current', j === pi); });
+    strip.classList.toggle('away', pi < 0);
+    var section = s.hasAttribute('data-n') ? 'p01' : s.id;
+    navLinks.forEach(function (a) { a.classList.toggle('current', a.getAttribute('href') === '#' + section); });
+    if (history.replaceState) history.replaceState(null, '', '#' + s.id);
   }
   if ('IntersectionObserver' in window) {
     var io = new IntersectionObserver(function (entries) {
@@ -30,38 +37,30 @@
     slides.forEach(function (s) { io.observe(s); });
   }
 
-  // Arrow keys and space step through the sequence; swipe and wheel are native.
+  // Arrow keys and space step through; swipe and wheel are native.
   function go(i) {
     if (i < 0 || i >= slides.length) return;
     slides[i].scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   document.addEventListener('keydown', function (e) {
-    if (panel.open || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); go(current + 1); }
     if (e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); go(current - 1); }
     if (e.key === 'Home') { e.preventDefault(); go(0); }
     if (e.key === 'End') { e.preventDefault(); go(slides.length - 1); }
   });
   cells.forEach(function (c, i) {
-    c.addEventListener('click', function (e) { e.preventDefault(); go(i); });
+    c.addEventListener('click', function (e) { e.preventDefault(); go(slides.indexOf(pictures[i])); });
   });
-
-  // The words: one panel, two sections, opened from the top edge or the last screen.
-  var sections = Array.prototype.slice.call(panel.querySelectorAll('.text'));
-  function openPanel(which) {
-    sections.forEach(function (s) { s.hidden = s.getAttribute('data-for') !== which; });
-    if (!panel.open) panel.showModal();
-    var box = panel.querySelector('.text:not([hidden])');
-    if (box) box.scrollTop = 0;
-  }
-  document.querySelectorAll('[data-panel]').forEach(function (b) {
-    b.addEventListener('click', function () { openPanel(b.getAttribute('data-panel')); });
+  document.querySelectorAll('a[href^="#"]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      var t = document.getElementById(a.getAttribute('href').slice(1));
+      if (t && slides.indexOf(t) >= 0) { e.preventDefault(); go(slides.indexOf(t)); }
+    });
   });
-  panel.querySelector('.close').addEventListener('click', function () { panel.close(); });
-  panel.addEventListener('click', function (e) { if (e.target === panel) panel.close(); });
 
   // Copy: the paragraphs as plain text, blank line between them.
-  panel.querySelectorAll('button.copy[data-copy]').forEach(function (btn) {
+  document.querySelectorAll('button.copy[data-copy]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var box = document.getElementById(btn.getAttribute('data-copy'));
       var text = Array.prototype.map.call(box.querySelectorAll('p'), function (p) { return p.textContent.trim(); }).join('\n\n');
@@ -88,5 +87,5 @@
     return ok;
   }
 
-  setCurrent(start);
+  setCurrent(current);
 })();

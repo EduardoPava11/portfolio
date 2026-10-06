@@ -117,6 +117,11 @@ pub fn esc(s: &str) -> String {
 fn index_html(c: &Content, rendered: &[Rendered], centroids: &HashMap<String, String>) -> String {
     let site = &c.site;
     let n = c.photos.len();
+    let font_link = if site.font_css.is_empty() {
+        String::new()
+    } else {
+        format!("<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\">\n<link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>\n<link rel=\"stylesheet\" href=\"{}\">\n", esc(&site.font_css))
+    };
     let mut h = String::new();
     h.push_str(&format!(
         r##"<!doctype html>
@@ -128,39 +133,46 @@ fn index_html(c: &Content, rendered: &[Rendered], centroids: &HashMap<String, St
 <meta name="description" content="{tagline}">
 <meta name="theme-color" content="#0b0b0a">
 <link rel="canonical" href="{base}">
-<link rel="stylesheet" href="style.css">
+{font_link}<link rel="stylesheet" href="style.css">
+<style>:root {{ --font: {font}; }}</style>
 </head>
 <body>
 <header class="top">
-  <a class="name" href="#p01">{name}</a>
+  <a class="name" href="#start">{name}</a>
   <nav>
-    <button type="button" data-panel="statement">Statement</button>
-    <button type="button" data-panel="bio">Bio</button>
+    <a href="#p01">Work</a>
+    <a href="#statement">Statement</a>
+    <a href="#bio">Bio</a>
   </nav>
 </header>
 <main class="reel" id="reel">
+<section class="slide start" id="start">
+  <div>
+    {series}<h1>{name}</h1>
+    <p class="tagline">{tagline}</p>
+    <p class="count">{n} photographs, in colour order</p>
+    <a class="begin" href="#p01" aria-label="Begin">&darr;</a>
+  </div>
+</section>
 "##,
         title = esc(&site.title),
         tagline = esc(&site.tagline),
         base = esc(&site.base_url),
+        font = site.font_family.replace('<', ""),
         name = esc(&site.name),
+        series = site.series_title.as_deref().map(|t| format!("<p class=\"series\">{}</p>\n    ", esc(t))).unwrap_or_default(),
     ));
 
     for (i, (p, r)) in c.photos.iter().zip(rendered).enumerate() {
         h.push_str(&slide(p, r, i, n));
     }
 
-    // Closing screen: the words, the contact, and the way back to the start.
-    h.push_str(&format!(
-        r##"<section class="slide colophon" id="colophon">
-  <div>
-    <h1>{name}</h1>
-    <p class="tagline">{tagline}</p>
-    <p class="actions"><button type="button" data-panel="statement">Artist statement</button><button type="button" data-panel="bio">Bio</button></p>
-    <p class="contact">"##,
-        name = esc(&site.name),
-        tagline = esc(&site.tagline),
-    ));
+    h.push_str(&text_slide("statement", "Artist statement", &c.statement));
+    h.push_str(&text_slide("bio", "Bio", &c.bio));
+
+    // Closing screen: contact and the way back.
+    h.push_str("<section class=\"slide colophon\" id=\"contact\">\n  <div>\n");
+    h.push_str(&format!("    <h2>{}</h2>\n", esc(&site.name)));
     let mut contact: Vec<String> = Vec::new();
     if let Some(e) = &site.email {
         contact.push(format!("<a href=\"mailto:{0}\">{0}</a>", esc(e)));
@@ -168,8 +180,10 @@ fn index_html(c: &Content, rendered: &[Rendered], centroids: &HashMap<String, St
     if let Some(ig) = &site.instagram {
         contact.push(format!("<a href=\"https://www.instagram.com/{0}/\">@{0}</a>", esc(ig)));
     }
-    h.push_str(&contact.join(" &middot; "));
-    h.push_str("</p>\n    <p class=\"back\"><a href=\"#p01\">Back to the first picture</a></p>\n  </div>\n</section>\n</main>\n");
+    if !contact.is_empty() {
+        h.push_str(&format!("    <p class=\"contact\">{}</p>\n", contact.join(" &middot; ")));
+    }
+    h.push_str("    <p class=\"contact\">Edmonton, Alberta</p>\n    <p class=\"back\"><a href=\"#start\">Back to the beginning</a></p>\n  </div>\n</section>\n</main>\n");
 
     // The sequence as a strip of centroids.
     h.push_str("<nav class=\"strip\" aria-label=\"Sequence\">\n");
@@ -180,14 +194,20 @@ fn index_html(c: &Content, rendered: &[Rendered], centroids: &HashMap<String, St
             hex = centroids[&p.stem]
         ));
     }
-    h.push_str("</nav>\n");
-
-    // The panel with the words.
-    h.push_str("<dialog id=\"panel\" aria-labelledby=\"panel-title\">\n<button type=\"button\" class=\"close\" aria-label=\"Close\">&times;</button>\n");
-    h.push_str(&text_block("statement", "Artist statement", &c.statement));
-    h.push_str(&text_block("bio", "Bio", &c.bio));
-    h.push_str("</dialog>\n<script src=\"site.js\"></script>\n</body>\n</html>\n");
+    h.push_str("</nav>\n<script src=\"site.js\"></script>\n</body>\n</html>\n");
     h
+}
+
+/// A full screen of text inside the reel, with its copy button.
+fn text_slide(id: &str, heading: &str, paragraphs: &[String]) -> String {
+    let mut s = format!(
+        "<section class=\"slide text\" id=\"{id}\">\n  <div class=\"text-inner\">\n    <div class=\"section-head\"><h2>{heading}</h2><button type=\"button\" class=\"copy\" data-copy=\"{id}-text\" aria-live=\"polite\">Copy</button></div>\n    <div id=\"{id}-text\" class=\"prose\">\n"
+    );
+    for p in paragraphs {
+        s.push_str(&format!("      <p>{}</p>\n", esc(p)));
+    }
+    s.push_str("    </div>\n  </div>\n</section>\n");
+    s
 }
 
 fn slide(p: &Photo, r: &Rendered, i: usize, total: usize) -> String {
@@ -236,15 +256,4 @@ fn slide(p: &Photo, r: &Rendered, i: usize, total: usize) -> String {
         alt = esc(&alt),
         tiny = r.tiny,
     )
-}
-
-fn text_block(id: &str, heading: &str, paragraphs: &[String]) -> String {
-    let mut s = format!(
-        "<section class=\"text\" data-for=\"{id}\" hidden>\n<div class=\"section-head\"><h2 id=\"panel-title-{id}\">{heading}</h2><button type=\"button\" class=\"copy\" data-copy=\"{id}-text\" aria-live=\"polite\">Copy</button></div>\n<div id=\"{id}-text\" class=\"prose\">\n"
-    );
-    for p in paragraphs {
-        s.push_str(&format!("<p>{}</p>\n", esc(p)));
-    }
-    s.push_str("</div>\n</section>\n");
-    s
 }

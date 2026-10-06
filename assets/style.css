@@ -1,26 +1,28 @@
 /* Form follows function: the picture is the page. Everything else is small, still,
-   and at the edges. Colours are tokens so the mat and the strip stay legible. */
+   black and white, and at the edges. The only colour is the pictures', their mats'
+   and the strip of their centroids. */
 :root {
   --ground: #0b0b0a;
   --ink: #ece7df;
   --muted: #9a938a;
   --rule: #2a2825;
-  --accent: #ffffff;
   --top: 52px;
   --strip: 10px;
   --strip-hit: 26px;
+  --font: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
 }
 * { box-sizing: border-box; }
 html { background: var(--ground); color: var(--ink); height: 100%; }
 body {
   margin: 0; height: 100%; overflow: hidden;
-  font: 15px/1.5 Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+  font: 15px/1.5 var(--font);
   -webkit-font-smoothing: antialiased;
 }
 a { color: inherit; }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+h1, h2 { font-weight: normal; margin: 0; }
 
-/* The reel: one picture per screen, snapped. */
+/* The reel: one screen at a time, snapped. */
 .reel {
   height: 100%; height: 100dvh;
   overflow-y: auto; overscroll-behavior-y: contain;
@@ -46,11 +48,20 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   position: absolute; left: 16px; right: 16px; bottom: calc(var(--strip-hit) + 2px);
   margin: 0; font-size: 0.8rem; color: var(--muted); letter-spacing: 0.02em;
 }
-.cap .n { color: var(--ink); font-variant-numeric: tabular-nums; }
-.cap .t { color: var(--ink); }
+.cap .n, .cap .t { color: var(--ink); }
+.cap .n { font-variant-numeric: tabular-nums; }
 .cap .long { display: block; max-width: 60ch; }
 
-/* The top edge: a name, two words. */
+/* Opening screen. */
+.start { text-align: center; }
+.start .series { font-size: 0.75rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin: 0 0 1.2rem; }
+.start h1 { font-size: clamp(1.6rem, 4vw, 2.6rem); letter-spacing: 0.01em; }
+.start .tagline { color: var(--muted); font-style: italic; margin: 0.6rem 0 0; font-size: 1.05rem; }
+.start .count { color: var(--muted); font-size: 0.8rem; letter-spacing: 0.08em; margin: 2.2rem 0 0; }
+.start .begin { display: inline-block; margin-top: 1.4rem; text-decoration: none; font-size: 1.4rem; color: var(--muted); }
+.start .begin:hover { color: var(--ink); }
+
+/* The top edge: a name, three words. */
 .top {
   position: fixed; top: 0; left: 0; right: 0; height: var(--top); z-index: 3;
   display: flex; align-items: center; justify-content: space-between;
@@ -61,10 +72,10 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 .top > * { pointer-events: auto; }
 .top .name { text-decoration: none; font-size: 0.95rem; letter-spacing: 0.02em; }
 .top nav { display: flex; gap: 1.2rem; }
-.top nav button, .actions button {
-  font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted);
+.top nav a {
+  text-decoration: none; font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted);
 }
-.top nav button:hover, .actions button:hover { color: var(--ink); }
+.top nav a:hover, .top nav a.current { color: var(--ink); }
 
 /* The bottom edge: the sequence, as the pictures' own centroids. */
 .strip {
@@ -77,40 +88,26 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   flex: 1; display: block; height: 100%;
   padding-top: calc(var(--strip-hit) - var(--strip));
   background-clip: content-box;
-  transition: padding-top 120ms ease;
+  transition: padding-top 120ms ease, opacity 200ms ease;
 }
 .strip a:hover, .strip a:focus-visible { padding-top: calc(var(--strip-hit) - var(--strip) - 6px); outline: none; }
 .strip a.current { padding-top: 0; box-shadow: inset 0 2px 0 var(--ink); }
+.strip.away a { opacity: 0.45; }
 
-/* The last screen. */
-.colophon { text-align: center; }
-.colophon h1 { font-weight: normal; font-size: 1.6rem; margin: 0 0 0.3rem; }
-.colophon .tagline { color: var(--muted); font-style: italic; margin: 0 0 2rem; }
-.colophon .actions { display: flex; gap: 2rem; justify-content: center; margin: 0 0 2rem; }
-.colophon .actions button { font-size: 0.8rem; border-bottom: 1px solid var(--rule); padding-bottom: 3px; }
-.colophon .contact, .colophon .back { color: var(--muted); font-size: 0.9rem; margin: 0.4rem 0; }
-
-/* The words, over the pictures. */
-dialog#panel {
-  border: 0; padding: 0; margin: 0; background: var(--ground); color: var(--ink);
-  position: fixed; inset: 0; width: 100vw; max-width: 100vw; height: 100vh; height: 100dvh; max-height: 100dvh;
-}
-dialog#panel::backdrop { background: rgba(11, 11, 10, 0.6); }
-@media (min-width: 760px) {
-  dialog#panel { left: auto; right: 0; width: min(560px, 60vw); border-left: 1px solid var(--rule); }
-}
-dialog#panel .close {
-  position: absolute; top: 8px; right: 14px; font-size: 32px; line-height: 1; color: var(--muted); z-index: 1;
-}
-dialog#panel .close:hover { color: var(--ink); }
-dialog#panel .text { height: 100%; overflow-y: auto; padding: 3.5rem 24px 3rem; padding-bottom: calc(3rem + env(safe-area-inset-bottom)); }
-.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; max-width: 42rem; }
-.section-head h2 { font-weight: normal; font-size: 0.8rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin: 0; }
-.prose { max-width: 42rem; margin-top: 1.2rem; font-size: 1.05rem; line-height: 1.6; }
+/* Text screens: statement, bio. */
+.text .text-inner { width: 100%; max-width: 42rem; max-height: 100%; overflow-y: auto; padding: 0 4px; }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.section-head h2 { font-size: 0.75rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.prose { margin-top: 1.2rem; font-size: clamp(1rem, 1.6vw, 1.15rem); line-height: 1.65; }
 .prose p { margin: 0 0 1.1em; }
 .copy {
   font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
-  border: 1px solid var(--rule); padding: 0.35rem 0.9rem; border-radius: 999px;
+  border: 1px solid var(--rule); padding: 0.35rem 0.9rem; border-radius: 999px; color: var(--muted);
 }
-.copy:hover { border-color: var(--ink); }
-.copy.done { border-color: var(--accent); color: var(--accent); }
+.copy:hover { border-color: var(--ink); color: var(--ink); }
+.copy.done { border-color: var(--ink); color: var(--ink); }
+
+/* Closing screen. */
+.colophon { text-align: center; }
+.colophon h2 { font-size: 1.3rem; margin-bottom: 1.2rem; }
+.colophon .contact, .colophon .back { color: var(--muted); font-size: 0.9rem; margin: 0.4rem 0; }

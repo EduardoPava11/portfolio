@@ -1,0 +1,48 @@
+# Type candidates for `portfolio fonts`. Pick one, copy family and css into site.toml.
+# System faces need no css. Web faces load from Google Fonts; the site then depends on it.
+
+[[font]]
+name = "Georgia (current)"
+family = "Georgia, 'Iowan Old Style', 'Palatino Linotype', serif"
+note = "System serif. Nothing to load."
+
+[[font]]
+name = "Iowan Old Style"
+family = "'Iowan Old Style', Georgia, serif"
+note = "Apple system serif, warmer than Georgia; falls back to Georgia elsewhere."
+
+[[font]]
+name = "EB Garamond"
+family = "'EB Garamond', Georgia, serif"
+css = "https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap"
+note = "Classic book face. Quiet, museum label register."
+
+[[font]]
+name = "Cormorant Garamond"
+family = "'Cormorant Garamond', Georgia, serif"
+css = "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&display=swap"
+note = "Lighter, more display. Needs a size bump for body text."
+
+[[font]]
+name = "Source Serif 4"
+family = "'Source Serif 4', Georgia, serif"
+css = "https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;1,8..60,400&display=swap"
+note = "Contemporary serif with optical sizes; even colour on screens."
+
+[[font]]
+name = "Inter"
+family = "Inter, system-ui, sans-serif"
+css = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap"
+note = "Neutral sans. Engineering register, disappears behind the pictures."
+
+[[font]]
+name = "IBM Plex Sans"
+family = "'IBM Plex Sans', system-ui, sans-serif"
+css = "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;1,400&display=swap"
+note = "Sans with a technical voice; pairs with the colour science."
+
+[[font]]
+name = "Space Grotesk"
+family = "'Space Grotesk', system-ui, sans-serif"
+css = "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500&display=swap"
+note = "Geometric sans with character; louder than the others."

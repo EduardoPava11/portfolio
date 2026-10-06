@@ -132,7 +132,12 @@ pub struct Reading {
 /// How the mats sit against the pictures. Registers and intensities follow matte's
 /// vocabulary and, like matte's, are taken from the set's own statistics, never fixed.
 pub struct MatOptions {
-    /// dark: 15th percentile of the pictures' median L*; mid: 50th; light: 85th.
+    /// How the mat's hue relates to the picture's: own (same hue), opponent (180 deg
+    /// away, the Hering opponent CIELAB is built on), split (150 deg, opposed but off
+    /// the exact complement).
+    pub hue: String,
+    /// dark: 15th percentile of the pictures' median L*; mid: 50th; light: 85th;
+    /// ink: halfway from the 5th percentile to black; paper: halfway from the 95th to white.
     pub register: String,
     /// Chroma at the CENTRE of the sequence. mute: half the pictures' mean chroma;
     /// balanced: the mean; statement: the 90th percentile.
@@ -142,11 +147,15 @@ pub struct MatOptions {
 }
 
 impl MatOptions {
-    fn parse(args: &[String]) -> Result<MatOptions> {
-        let mut o = MatOptions { register: "mid".into(), intensity: "statement".into(), floor: "mute".into() };
+    pub fn parse(args: &[String]) -> Result<MatOptions> {
+        let mut o = MatOptions { hue: "own".into(), register: "mid".into(), intensity: "statement".into(), floor: "mute".into() };
         let mut i = 0;
         while i < args.len() {
             match args[i].as_str() {
+                "--hue" => {
+                    o.hue = args.get(i + 1).ok_or("--hue needs own|opponent|split")?.clone();
+                    i += 2;
+                }
                 "--register" => {
                     o.register = args.get(i + 1).ok_or("--register needs dark|mid|light")?.clone();
                     i += 2;
@@ -162,8 +171,11 @@ impl MatOptions {
                 other => return Err(format!("unknown option {other}").into()),
             }
         }
-        if !["dark", "mid", "light"].contains(&o.register.as_str()) {
-            return Err(format!("--register must be dark, mid or light, not {}", o.register).into());
+        if !["ink", "dark", "mid", "light", "paper"].contains(&o.register.as_str()) {
+            return Err(format!("--register must be ink, dark, mid, light or paper, not {}", o.register).into());
+        }
+        if !["own", "opponent", "split"].contains(&o.hue.as_str()) {
+            return Err(format!("--hue must be own, opponent or split, not {}", o.hue).into());
         }
         for (flag, v) in [("--intensity", &o.intensity), ("--floor", &o.floor)] {
             if !["mute", "balanced", "statement"].contains(&v.as_str()) {
@@ -185,13 +197,20 @@ fn sorted_percentile(values: &mut Vec<f32>, q: f32) -> f32 {
 /// a raised cosine envelope over sequence position: the floor at the first and last
 /// picture, the full intensity at the centre, so the body opens and closes quietly and
 /// peaks in the middle, the way a sequence is paced. Returns (L*, C* floor, C* peak).
-fn derive_mats(rs: &mut [Reading], o: &MatOptions) -> (f32, f32, f32) {
+pub fn derive_mats(rs: &mut [Reading], o: &MatOptions) -> (f32, f32, f32) {
     let mut ls: Vec<f32> = rs.iter().map(|r| r.median_l).collect();
     let mut cs: Vec<f32> = rs.iter().map(|r| r.mean_c).collect();
     let l = match o.register.as_str() {
+        "ink" => 0.5 * sorted_percentile(&mut ls, 0.05),
         "dark" => sorted_percentile(&mut ls, 0.15),
         "light" => sorted_percentile(&mut ls, 0.85),
+        "paper" => 0.5 * (sorted_percentile(&mut ls, 0.95) + 100.0),
         _ => sorted_percentile(&mut ls, 0.50),
+    };
+    let turn: f32 = match o.hue.as_str() {
+        "opponent" => 180.0,
+        "split" => 150.0,
+        _ => 0.0,
     };
     let mean_c = cs.iter().sum::<f32>() / cs.len().max(1) as f32;
     let p90_c = sorted_percentile(&mut cs, 0.90);
@@ -206,7 +225,7 @@ fn derive_mats(rs: &mut [Reading], o: &MatOptions) -> (f32, f32, f32) {
         let t = if n > 1 { i as f32 / (n - 1) as f32 } else { 0.5 };
         let envelope = 0.5 - 0.5 * (2.0 * std::f32::consts::PI * t).cos();
         let c = floor + (peak - floor) * envelope;
-        let h = r.hue.to_radians();
+        let h = (r.hue + turn).to_radians();
         r.mat = Some(Lab { l, a: c * h.cos(), b: c * h.sin() }.gamut_mapped());
     }
     (l, floor, peak)
@@ -232,9 +251,13 @@ pub fn run(root: &Path, args: &[String]) -> Result<()> {
     order_by_colour(&mut readings);
     let (mat_l, mat_floor, mat_peak) = derive_mats(&mut readings, &opts);
     println!(
-        "lab: mats at L* {mat_l:.1} ({} register); chroma {mat_floor:.1} ({}) at the ends rising to {mat_peak:.1} ({}) at the centre; each in its picture's hue",
-        opts.register, opts.floor, opts.intensity
+        "lab: mats in the {} hue at L* {mat_l:.1} ({} register); chroma {mat_floor:.1} ({}) at the ends rising to {mat_peak:.1} ({}) at the centre",
+        opts.hue, opts.register, opts.floor, opts.intensity
     );
+    fs::write(
+        out.join("mat-law.txt"),
+        format!("--hue {} --register {} --intensity {} --floor {}\n", opts.hue, opts.register, opts.intensity, opts.floor),
+    )?;
 
     let mut order = String::from("# Colour order written by `portfolio lab`. One file stem per line.\n# Edit by hand if you like; `build` and `export` follow this order.\n");
     for r in &readings {
@@ -262,7 +285,7 @@ pub fn run(root: &Path, args: &[String]) -> Result<()> {
     Ok(())
 }
 
-fn read(photo: &Photo, out: &Path) -> Result<Reading> {
+pub fn read(photo: &Photo, out: &Path) -> Result<Reading> {
     let img = images::open_upright(photo)?;
     let rgb: RgbImage = img.to_rgb8();
     let (w, h) = rgb.dimensions();
@@ -395,7 +418,7 @@ fn percentile(hist: &[u64], q: f64) -> f32 {
 /// just after the gap and no colour family is torn in two. A photograph whose
 /// file is named `end` (with or without a number prefix) is pinned as the last
 /// picture: that is the author's closing frame, not the colour's.
-fn order_by_colour(rs: &mut Vec<Reading>) {
+pub fn order_by_colour(rs: &mut Vec<Reading>) {
     let mut tail = Vec::new();
     let mut i = 0;
     while i < rs.len() {
@@ -623,7 +646,7 @@ mod tests {
             r.mean_c = 10.0 + i as f32;
             r.median_l = 40.0;
         }
-        let o = MatOptions { register: "mid".into(), intensity: "statement".into(), floor: "mute".into() };
+        let o = MatOptions { hue: "own".into(), register: "mid".into(), intensity: "statement".into(), floor: "mute".into() };
         let (_, floor, peak) = derive_mats(&mut rs, &o);
         let c: Vec<f32> = rs.iter().map(|r| r.mat.unwrap().chroma()).collect();
         assert!((c[0] - floor).abs() < 0.05 && (c[8] - floor).abs() < 0.05, "{c:?}");

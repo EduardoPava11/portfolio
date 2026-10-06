@@ -24,6 +24,17 @@ pub struct Site {
     /// Show the framed copies from content/framed/ on the site.
     #[serde(default)]
     pub framed: bool,
+    /// Typeface: a CSS font-family stack and, for a web font, the stylesheet that loads it.
+    #[serde(default = "default_font_family")]
+    pub font_family: String,
+    #[serde(default)]
+    pub font_css: String,
+    /// Title of the body of work, shown on the opening screen when set.
+    pub series_title: Option<String>,
+}
+
+fn default_font_family() -> String {
+    "Georgia, 'Iowan Old Style', 'Palatino Linotype', serif".to_string()
 }
 
 fn default_photos_dir() -> String {

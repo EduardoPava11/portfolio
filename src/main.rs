@@ -14,9 +14,11 @@
 mod color;
 mod content;
 mod export;
+mod fonts;
 mod frame;
 mod images;
 mod lab;
+mod proof;
 mod red;
 mod rename;
 mod site;
@@ -37,6 +39,8 @@ fn main() {
         "frame" => frame::run(root, &args[1..]),
         "export" => export::run(root),
         "rename" => rename::run(root),
+        "proof" => proof::run(root),
+        "fonts" => fonts::run(root),
         "all" => site::build(root).and_then(|_| red::run(root, &args[1..])),
         _ => {
             eprintln!("usage: portfolio [build|lab|frame|export|red|all]");
@@ -45,6 +49,8 @@ fn main() {
             eprintln!("  frame    borders via matte -> content/framed/ (pass matte options after the command)");
             eprintln!("  export   submission JPEGs from content/selection.txt -> export/");
             eprintln!("  rename   number the files 01-, 02-, ... in colour order (a file named end goes last)");
+            eprintln!("  proof    mat laws rendered across the sequence -> analysis/mats/");
+            eprintln!("  fonts    type candidates from content/fonts.toml -> analysis/fonts/");
             eprintln!("  red      red analysis [--chroma-floor F] [--hue LO HI] [--side N]");
             std::process::exit(2);
         }
