@@ -11,6 +11,7 @@
 //!               --hue LO HI         red sector in OKLCh degrees (default: derived from the sRGB primaries)
 //!               --side N            analysis resolution, longest side in pixels (default 1200)
 
+mod check;
 mod color;
 mod content;
 mod export;
@@ -41,6 +42,7 @@ fn main() {
         "rename" => rename::run(root),
         "proof" => proof::run(root),
         "fonts" => fonts::run(root),
+        "check" => check::run(root),
         "all" => site::build(root).and_then(|_| red::run(root, &args[1..])),
         _ => {
             eprintln!("usage: portfolio [build|lab|frame|export|red|all]");
@@ -51,6 +53,7 @@ fn main() {
             eprintln!("  rename   number the files 01-, 02-, ... in colour order (a file named end goes last)");
             eprintln!("  proof    mat laws rendered across the sequence -> analysis/mats/");
             eprintln!("  fonts    type candidates from content/fonts.toml -> analysis/fonts/");
+            eprintln!("  check    phone/tablet/laptop screenshots + static design checks -> analysis/check/");
             eprintln!("  red      red analysis [--chroma-floor F] [--hue LO HI] [--side N]");
             std::process::exit(2);
         }

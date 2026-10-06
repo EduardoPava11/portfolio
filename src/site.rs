@@ -147,10 +147,11 @@ fn index_html(c: &Content, rendered: &[Rendered], centroids: &HashMap<String, St
 </header>
 <main class="reel" id="reel">
 <section class="slide start" id="start">
-  <div>
-    {series}<h1>{name}</h1>
+  <div class="start-inner">
+    {series}<h1>{name_nowrap}</h1>
     <p class="tagline">{tagline}</p>
-    <p class="count">{n} photographs, in colour order</p>
+    <div class="band" aria-label="The body of work as colour">{band}</div>
+    <p class="count"><b>{n}</b> photographs in colour order</p>
     <a class="begin" href="#p01" aria-label="Begin">&darr;</a>
   </div>
 </section>
@@ -160,7 +161,18 @@ fn index_html(c: &Content, rendered: &[Rendered], centroids: &HashMap<String, St
         base = esc(&site.base_url),
         font = site.font_family.replace('<', ""),
         name = esc(&site.name),
+        // Keep the last token (an initial such as "P.") on the line before it.
+        name_nowrap = match esc(&site.name).rsplit_once(' ') {
+            Some((head, tail)) => format!("{head}&nbsp;{tail}"),
+            None => esc(&site.name),
+        },
         series = site.series_title.as_deref().map(|t| format!("<p class=\"series\">{}</p>\n    ", esc(t))).unwrap_or_default(),
+        band = c
+            .photos
+            .iter()
+            .enumerate()
+            .map(|(i, p)| format!("<a href=\"#p{:02}\" style=\"background:{}\" aria-label=\"Picture {}\"></a>", i + 1, centroids[&p.stem], i + 1))
+            .collect::<String>(),
     ));
 
     for (i, (p, r)) in c.photos.iter().zip(rendered).enumerate() {
@@ -171,7 +183,7 @@ fn index_html(c: &Content, rendered: &[Rendered], centroids: &HashMap<String, St
     h.push_str(&text_slide("bio", "Bio", &c.bio));
 
     // Closing screen: contact and the way back.
-    h.push_str("<section class=\"slide colophon\" id=\"contact\">\n  <div>\n");
+    h.push_str("<section class=\"slide colophon\" id=\"contact\">\n  <div class=\"colophon-inner\">\n");
     h.push_str(&format!("    <h2>{}</h2>\n", esc(&site.name)));
     let mut contact: Vec<String> = Vec::new();
     if let Some(e) = &site.email {
@@ -214,7 +226,7 @@ fn slide(p: &Photo, r: &Rendered, i: usize, total: usize) -> String {
     let n = i + 1;
     let title = p.meta.title.clone();
     let when = p.when();
-    let mut cap = format!("<span class=\"n\">{n:02}</span>");
+    let mut cap = format!("<span class=\"n\">{n:02}</span><span class=\"of\">/{total}</span>");
     if let Some(t) = &title {
         cap.push_str(&format!(" <span class=\"t\">{}</span>", esc(t)));
     }

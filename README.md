@@ -53,6 +53,7 @@ cargo run --release -- lab       # CIELAB reading of every pixel; writes content
 cargo run --release -- frame     # borders via matte -> content/framed/ (matte options may follow)
 cargo run --release -- export    # submission JPEGs from content/selection.txt -> export/
 cargo run --release -- build     # write docs/, open docs/index.html in a browser
+cargo run --release -- check     # phone/tablet/laptop screenshots + design checks -> analysis/check/
 cargo run --release -- red       # analyse the reds, open analysis/red/index.html
 ./deploy.sh                      # build and publish to GitHub Pages
 ```
@@ -109,9 +110,9 @@ picture and reaches the `--intensity` level at the centre, so the body opens and
 closes quietly and peaks in the middle. Both levels come from the set's own
 statistics in matte's vocabulary:
 
-| | ink | dark | mid | light | paper (chosen 2026-10-05) |
+| | ink | dark | mid | light | paper |
 | --- | --- | --- | --- | --- | --- |
-| L* | halfway from the 5th percentile of median L* to black | 15th percentile | 50th | 85th | halfway from the 95th to white |
+| L* | halfway from the 5th percentile of median L* to black | 15th percentile | 50th | 85th (chosen) | halfway from the 95th to white |
 
 | | mute (default floor) | balanced | statement (default centre) |
 | --- | --- | --- | --- |
@@ -119,13 +120,15 @@ statistics in matte's vocabulary:
 
 Out of gamut mats are mapped by holding L* and hue and bisecting on chroma. The
 result is the `mat_hex` column of `analysis/lab/lab.csv`, the second swatch on the
-contact sheet, and the flags recorded in `analysis/lab/mat-law.txt`.
+contact sheet, and the flags recorded in `analysis/lab/mat-law.txt`. Chosen by Daniel
+2026-10-05: `--hue own --register light --floor mute --intensity balanced`.
 
 To choose a law from pictures rather than words, `portfolio proof` renders eight
 candidate laws across seven pictures spread over the sequence into
 `analysis/mats/index.html`. The mid register in the picture's own hue was rejected
 on 2026-10-05 (it repeats the picture and turns to mud at the centre); the paper
-register in the picture's own hue, a tinted mat board, is what the site carries.
+register was the interim choice; Daniel then picked the light register with a balanced
+centre, which is what the site carries.
 
 `portfolio frame` then runs `matte frame` (`~/MATTE`) once per picture with
 `--color <mat_hex>`; matte grows the canvas without resampling. The mats are cut with
@@ -145,7 +148,27 @@ the statement in every candidate listed in `content/fonts.toml` and writes
 `analysis/fonts/index.html`. Pick by reading, then copy that candidate's `family`
 and `css` into `font_family` and `font_css` in `content/site.toml` and rebuild.
 System faces need no `css`; a web face loads from Google Fonts and the site then
-depends on it.
+depends on it. Chosen 2026-10-05: IBM Plex Sans, weights 400 to 700.
+
+## Design check: mobile and bold
+
+`portfolio check` is the workflow that keeps the design honest on a phone. It runs
+sixteen static checks on the built page (viewport meta with `viewport-fit=cover`,
+safe area insets, `100dvh`, coarse pointer rules, reduced motion, smallest type at
+least 0.75rem, width and height on every picture, AVIF on every picture, lazy
+loading, inline placeholders, a bold weight loaded, copy buttons, first screen under
+600 KB, no dashes) and then drives headless Chrome through five viewports (phone
+390x844, phone wide 430x932, phone landscape, tablet 834x1194, laptop 1440x900) and
+six screens (start, first picture, centre picture, last picture, statement, bio).
+Chrome on macOS will not shrink its window to phone width, so each viewport is an
+iframe of the exact size inside a large window and the capture is cropped to it.
+Everything lands in `analysis/check/index.html`; the command exits 1 when a static
+check fails, so it can gate a deploy.
+
+Bold, by design: the opening screen sets the name at up to 7rem in Plex Sans Bold
+over the body of work drawn as a full width band of its 55 centroids; the counter is
+a 2rem bold numeral; the first paragraph of the statement leads at up to 2rem
+semibold; every screen settles into place as it snaps (reduced motion turns it off).
 
 ## The screens
 

@@ -36,9 +36,9 @@ css = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap"
 note = "Neutral sans. Engineering register, disappears behind the pictures."
 
 [[font]]
-name = "IBM Plex Sans"
+name = "IBM Plex Sans (chosen)"
 family = "'IBM Plex Sans', system-ui, sans-serif"
-css = "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;1,400&display=swap"
+css = "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
 note = "Sans with a technical voice; pairs with the colour science."
 
 [[font]]

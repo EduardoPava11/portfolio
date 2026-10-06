@@ -21,6 +21,7 @@
   function setCurrent(i) {
     current = i;
     var s = slides[i];
+    s.classList.add('in');
     var pi = pictures.indexOf(s);
     cells.forEach(function (c, j) { c.classList.toggle('current', j === pi); });
     strip.classList.toggle('away', pi < 0);
@@ -31,9 +32,10 @@
   if ('IntersectionObserver' in window) {
     var io = new IntersectionObserver(function (entries) {
       entries.forEach(function (e) {
+        if (e.isIntersecting && e.intersectionRatio >= 0.25) e.target.classList.add('in');
         if (e.isIntersecting && e.intersectionRatio >= 0.6) setCurrent(slides.indexOf(e.target));
       });
-    }, { root: reel, threshold: [0.6] });
+    }, { root: reel, threshold: [0.25, 0.6] });
     slides.forEach(function (s) { io.observe(s); });
   }
 
